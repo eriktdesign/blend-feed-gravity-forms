@@ -245,6 +245,12 @@ class BlendGFeed extends GFFeedAddOn {
 						'tooltip' => esc_html__('This is the tooltip', 'blend-gfeed'),
 						'class'   => 'small',
 					),
+
+
+					// TODO: We should maybe have a dropdown here that allows the user to select which endpoint they want to submit the feed to?
+					// Is it possible to dynamically change the `mappedFields` array based on this selection?
+
+
 					// array(
 					// 	'label'   => esc_html__('Textbox', 'blend-gfeed'),
 					// 	'type'    => 'text',
@@ -321,7 +327,7 @@ class BlendGFeed extends GFFeedAddOn {
 						'label'          => esc_html__('Condition', 'blend-gfeed'),
 						'type'           => 'feed_condition',
 						'checkbox_label' => esc_html__('Enable Condition', 'blend-gfeed'),
-						'instructions'   => esc_html__('Process this simple feed if', 'blend-gfeed'),
+						'instructions'   => esc_html__('Process this Blend feed if', 'blend-gfeed'),
 					),
 				),
 			),
