@@ -4,6 +4,8 @@
  * Blend GFeed class
  */
 
+use function PHPSTORM_META\map;
+
 GFForms::include_feed_addon_framework();
 
 class BlendGFeed extends GFFeedAddOn {
@@ -52,10 +54,10 @@ class BlendGFeed extends GFFeedAddOn {
 	 *
 	 * @return bool|void
 	 */
-	public function process_feed($feed, $entry, $form) {
-		$feedName  = $feed['meta']['feedName'];
-		$mytextbox = $feed['meta']['mytextbox'];
-		$checkbox  = $feed['meta']['mycheckbox'];
+	public function process_feed( $feed, $entry, $form ) {
+		$feed_name = $feed['meta']['feedName'];
+		// $mytextbox = $feed['meta']['mytextbox'];
+		// $checkbox  = $feed['meta']['mycheckbox'];
 
 		// Retrieve the name => value pairs for all fields mapped in the 'mappedFields' field map.
 		$field_map = $this->get_field_map_fields($feed, 'mappedFields');
@@ -64,11 +66,38 @@ class BlendGFeed extends GFFeedAddOn {
 		$merge_vars = array();
 		foreach ($field_map as $name => $field_id) {
 
-			// Get the field value for the specified field id
-			$merge_vars[$name] = $this->get_field_value($form, $entry, $field_id);
+			if ( empty( $this->get_field_value( $form, $entry, $field_id ) ) ) continue;
+
+			// Get the nested array keys for this value
+			$keys = explode( '.', $name );
+
+			// Initialize a reference variable to point to the current level of the output array
+			$ref = &$merge_vars;
+
+			// Loop through the key levels
+			foreach ( $keys as $i => $subkey ) {
+				// If this level of nesting doesn't exist, create it as an empty array
+				if ( ! isset( $ref[ $subkey ] ) ) {
+					$ref[ $subkey ] = [];
+				}
+
+				// Set the reference pointer to the current level of nesting
+				$ref = &$ref[ $subkey ];
+			}
+
+			// Set the value of the deepest level
+			$ref = $this->get_field_value( $form, $entry, $field_id );
 		}
 
 		// Send the values to the third-party service.
+		// print_r(json_encode($merge_vars));
+		$api = new Blend_API();
+		$response = $api->post( 'home-lending/applications', [], json_encode( $merge_vars ) );
+		if ( is_wp_error( $response ) ) {
+			$this->add_feed_error( 'Error posting to Blend', $feed, $entry, $form );
+		} else {
+			$this->add_note( $entry['id'], 'Entry sent to Blend successfully', 'success' );
+		}
 	}
 
 	/**
@@ -87,7 +116,7 @@ class BlendGFeed extends GFFeedAddOn {
 
 		// If there is a value and the field phoneFormat setting is set to standard reformat the value.
 		if (!empty($field_value) && $field->phoneFormat == 'standard' && preg_match('/^\D?(\d{3})\D?\D?(\d{3})\D?(\d{4})$/', $field_value, $matches)) {
-			$field_value = sprintf('%s-%s-%s', $matches[1], $matches[2], $matches[3]);
+			$field_value = sprintf('%s%s%s', $matches[1], $matches[2], $matches[3]);
 		}
 
 		return $field_value;
@@ -234,104 +263,282 @@ class BlendGFeed extends GFFeedAddOn {
 	 * @return array
 	 */
 	public function feed_settings_fields() {
-		return array(
+		$td = 'blend-gfeed';
+		$settings_fields = array(
 			array(
-				'title'  => esc_html__('Blend Feed Settings', 'blend-gfeed'),
+				'title'  => esc_html__('Blend Feed Settings', $td ),
 				'fields' => array(
 					array(
-						'label'   => esc_html__('Feed name', 'blend-gfeed'),
+						'label'   => esc_html__('Feed name', $td ),
 						'type'    => 'text',
 						'name'    => 'feedName',
-						'tooltip' => esc_html__('This is the tooltip', 'blend-gfeed'),
+						'tooltip' => esc_html__('This is the tooltip', $td ),
 						'class'   => 'small',
 					),
-
-
-					// TODO: We should maybe have a dropdown here that allows the user to select which endpoint they want to submit the feed to?
-					// Is it possible to dynamically change the `mappedFields` array based on this selection?
-
-
 					// array(
-					// 	'label'   => esc_html__('Textbox', 'blend-gfeed'),
-					// 	'type'    => 'text',
-					// 	'name'    => 'mytextbox',
-					// 	'tooltip' => esc_html__('This is the tooltip', 'blend-gfeed'),
-					// 	'class'   => 'small',
-					// ),
-					// array(
-					// 	'label'   => esc_html__('My checkbox', 'blend-gfeed'),
-					// 	'type'    => 'checkbox',
-					// 	'name'    => 'mycheckbox',
-					// 	'tooltip' => esc_html__('This is the tooltip', 'blend-gfeed'),
+					// 	'label' => esc_html__( 'Blend Action', $td  ),
+					// 	'type' => 'select',
+					// 	'name' => 'blendAction', 
+					// 	'tooltip' => esc_html__( 'Select the Blend action this feed should trigger' ),
+					// 	'class' => 'small',
 					// 	'choices' => array(
 					// 		array(
-					// 			'label' => esc_html__('Enabled', 'blend-gfeed'),
-					// 			'name'  => 'mycheckbox',
-					// 		),
+					// 			'label' => esc_html__( 'Create a Home Lending application' ),
+					// 			'value' => '/home-lending/applications'
+					// 		)
 					// 	),
 					// ),
 					array(
 						'name'      => 'mappedFields',
-						'label'     => esc_html__('Map Fields', 'blend-gfeed'),
+						'label'     => esc_html__('Map Fields', $td ),
 						'type'      => 'field_map',
 						'field_map' => array(
 							array(
-								'name'       => 'party.email',
-								'label'      => esc_html__('Email', 'blend-gfeed'),
-								'required'   => 1,
-								'field_type' => array('email', 'hidden'),
-								'tooltip' => esc_html__('This is the tooltip', 'blend-gfeed'),
+								'name' => 'solutionSubType',
+								'label' => esc_html__( 'Solution Subtype', $td ),
+								'tooltip' => esc_html__( 'Subtype of home loan application being created. Must be one of: MORTGAGE, HELOC, HELOAN', $td  ),
+								'required' => false,
+							),
+							array( 
+								'name' => 'applicationExperienceType',
+								'label' => esc_html__( 'Application Experience Type', $td ),
+								'tooltip' => esc_html__( 'The type of borrower experience for this application. Must be one of: FULL_APPLICATION, LENDER_ENTERED, POST_SUBMISSION', 'blend-geed' ),
+								'required' => false,
 							),
 							array(
-								'name'     => 'party.firstName',
-								'label'    => esc_html__('First Name', 'blend-gfeed'),
-								'required' => 1,
+								'name' => 'loanPurposeType',
+								'label' => esc_html__( 'Loan Purpose Type', $td ),
+								'tooltip' => esc_html__( 'Reason for this home loan application. Must be one of: CONSTRUCTION, PURCHASE, REFINANCE', $td ),
+								'required' => false,
+							),
+							
+							// PROPERTY OBJECT
+							array(
+								'name'     => 'property.address.streetAddressLine1',
+								'label'    => esc_html__('Property Address Line 1', $td ),
+								'required' => false, //true,
 							),
 							array(
-								'name'     => 'party.lastName',
-								'label'    => esc_html__('Last Name', 'blend-gfeed'),
-								'required' => 1,
+								'name'     => 'property.address.streetAddressLine2',
+								'label'    => esc_html__('Property Address Line 2', $td ),
+								'required' => false,
 							),
 							array(
-								'name'       => 'party.homePhone',
-								'label'      => esc_html__('Home Phone', 'blend-gfeed'),
-								'required'   => 0,
-								'field_type' => 'phone',
-							),
-							array(
-								'name'     => 'loanPurposeType',
-								'tooltip'  => esc_html__( 'Should be one of the following: CONSTRUCTION, PURCHASE, REFINANCE' ),
-								'label'    => esc_html__('Loan Purpose', 'blend-gfeed'),
-								'required' => 0,
-							),		
+								'name'     => 'property.address.city',
+								'label'    => esc_html__('Property Address City', $td ),
+								'required' => false, //true,
+							),	
 							array(
 								'name'     => 'property.address.state',
-								'label'    => esc_html__('Property Address State', 'blend-gfeed'),
-								'required' => 0,
+								'label'    => esc_html__('Property Address State', $td ),
+								'required' => false, //true,
 							),
 							array(
 								'name'     => 'property.address.zipCode',
-								'label'    => esc_html__('Property Address ZIP code', 'blend-gfeed'),
-								'required' => 0,
-							),							
+								'label'    => esc_html__('Property Address ZIP code', $td ),
+								'required' => false, //true,
+							),
+							array(
+								'name'     => 'property.address.zipCodePlusFour',
+								'label'    => esc_html__('Property Address ZIP+4', $td ),
+								'required' => false,
+							),
+							array(
+								'name'     => 'property.address.countyName',
+								'label'    => esc_html__('Property Address County Name', $td ),
+								'required' => false,
+							),	
 							array(
 								'name'     => 'property.type',
-								'tooltip'  => esc_html__( 'Should be one of the following: SINGLE_FAMILY, CONDOMINIUM, TOWNHOUSE, TWO_TO_FOUR_UNIT_PROPERTY, COOPERATIVE, MANUFACTURED_OR_MOBILE_HOME' ),
-								'label'    => esc_html__('Property Type', 'blend-gfeed'),
-								'required' => 0,
+								'tooltip'  => esc_html__( 'Describes the type of property to which the application pertains. Must be one of: SINGLE_FAMILY, CONDOMINIUM, TOWNHOUSE, TWO_TO_FOUR_UNIT_PROPERTY, COOPERATIVE, MANUFACTURED_OR_MOBILE_HOME', $td ),
+								'label'    => esc_html__('Property Type', $td ),
+								'required' => false,
+							),
+							array(
+								'name'     => 'property.searchType',
+								'tooltip'  => esc_html__( 'Describes the applicant search stage. Must be one of: NOT_STARTED, STILL_LOOKING, FOUND, NOT_IN_CONTRACT', $td ),
+								'label'    => esc_html__('Property Search Type', $td ),
+								'required' => false,
+							),
+							array(
+								'name'     => 'property.searchTimeline',
+								'tooltip'  => esc_html__( 'Describes the applicant timeline for searching for a property. Must be one of: 0_TO_3_MONTHS, 3_TO_6_MONTHS, 6_TO_12_MONTHS, 12_MONTHS_OR_MORE, UNKNOWN', $td ),
+								'label'    => esc_html__('Property Search Timeline', $td ),
+								'required' => false,
+							),
+
+							array(
+								'name' => 'loanAmount',
+								'label' => esc_html__( 'Loan Amount', $td ),
+								'tooltip' => esc_html__( 'Amount of money (dollars and cents) for which the applicant is applying.', $td ),
+								'required' => false,
+							),
+							array(
+								'name' => 'purchasePrice',
+								'label' => esc_html__( 'Purchase Price', $td ),
+								'tooltip' => esc_html__( 'Purchase price for the subject property of the loan. Only supported for new URLA mortgage applications.', $td ),
+								'required' => false,					
+							),
+							array(
+								'name' => 'communityId', 
+								'label' => esc_html__( 'Community ID', $td ),
+								'required' => false,
+							),
+							
+							// PARTY OBJECT
+							// Name
+							array(
+								'name'     => 'party.name.firstName',
+								'label'    => esc_html__('First Name', $td ),
+								'required' => true,
+							),
+							array(
+								'name'     => 'party.name.middleName',
+								'label'    => esc_html__('Middle Name', $td ),
+								'required' => false,
+							),
+							array(
+								'name'     => 'party.name.lastName',
+								'label'    => esc_html__('Last Name', $td ),
+								'required' => true,
+							),
+							array(
+								'name'     => 'party.name.suffixName',
+								'label'    => esc_html__('Suffix Name', $td ),
+								'required' => false,
+							),
+							array(
+								'name'       => 'party.email',
+								'label'      => esc_html__('Email', $td ),
+								'required'   => false,
+								'field_type' => array('email', 'hidden'),
+								'tooltip' => esc_html__('This is the tooltip', $td ),
+							),
+
+							// skipping SSN/EINs for now
+
+							array(
+								'name' => 'party.dateOfBirth', 
+								'label' => esc_html__( 'Date of Birth', $td ),
+								'required' => false,
+							),
+							array(
+								'name'       => 'party.homePhone',
+								'label'      => esc_html__('Home Phone', $td ),
+								'required'   => false,
+								'field_type' => 'phone',
+							),
+
+							// CURRENT ADDRESS
+							array(
+								'name'       => 'party.currentAddress.streetAddressLine1',
+								'label'      => esc_html__('Current Address Line 1', $td ),
+								'required'   => false,
+							),
+							array(
+								'name'       => 'party.currentAddress.streetAddressLine2',
+								'label'      => esc_html__('Current Address Line 2', $td ),
+								'required'   => false,
+							),
+							array(
+								'name'       => 'party.currentAddress.city',
+								'label'      => esc_html__('Current Address City', $td ),
+								'required'   => false,
+							),
+							array(
+								'name'       => 'party.currentAddress.state',
+								'label'      => esc_html__('Current Address State', $td ),
+								'required'   => false,
+							),
+							array(
+								'name'       => 'party.currentAddress.zipCode',
+								'label'      => esc_html__('Current Address ZIP Code', $td ),
+								'required'   => false,
+							),
+							array(
+								'name'       => 'party.currentAddress.zipCodePlusFour',
+								'label'      => esc_html__('Current Address ZIP+4', $td ),
+								'required'   => false,
+							),
+							array(
+								'name' => 'countyName',
+								'label' => esc_html__( 'Current Address County Name', $td ),
+								'required' => false,
+							),
+							array(
+								'name' => 'moveInDate',
+								'label' => esc_html__( 'Move In Date', $td ),
+								'tooltip' => esc_html__( 'UTC Timestamp of the move in for current address, eg: 2018-10-03T20:07:27+00:00', $td ),
+								'required' => false,
+							),
+
+							// skipping mailing address right now
+
+							// CRM / Leads
+							array(
+								'name' => 'crmId',
+								'label' => esc_html__( 'CRM ID', $td ),
+								'tooltip' => esc_html__( 'Unique identifier in the lender CRM system.', $td ),
+								'required' => false,
+							),
+							array(
+								'name' => 'leadId',
+								'label' => esc_html__( 'Lead ID', $td ),
+								'tooltip' => esc_html__( 'Unique identifier in the system that referred the lead to Blend. Usually this should be set to the Gravity Forms entry ID.', $td ),
+								'required' => false,
+							),
+
+							// APPLICATION SOURCE
+							array(
+								'name' => 'applicationSource.type',
+								'label' => esc_html__( 'Application Source Type', $td ),
+								'tooltip' => esc_html__( 'Type of system the application came from. If set to Other, it is recommended to also set a name. Must be one of: LOS, CRM, Other', $td ),
+								'required' => false,
+							),
+							array(
+								'name' => 'applicationSource.name',
+								'label' => esc_html__( 'Application Source Name', $td ),
+								'tooltip' => esc_html__( 'Name of the system creating the application. Eg: WordPress, Gravity Forms, Website, etc.', $td ),
+								'required' => false,
+							),
+
+							// LOAN INFO
+							array(
+								'name' => 'interestRate',
+								'label' => esc_html__( 'Interest Rate', $td ),
+								'tooltip' => esc_html__( 'Unique identifier in the lender CRM system.', $td ),
+								'required' => false,
+							),
+							array(
+								'name' => 'mortgageType',
+								'label' => esc_html__( 'Mortgage Type', $td ),
+								'tooltip' => esc_html__( 'Describes the type of mortgage. Must be one of: CONVENTIONAL, FHA, LOCAL_AGENCY, OTHER, PUBLIC_AND_INDIAN_HOUSING, STATE_AGENCY, USDARURAL_DEVELOPMENT, VA', $td ),
+								'required' => false,
+							),
+
+							// Skipping customMetadata for now
+
+							array(
+								'name' => 'branchIdOverride',
+								'label' => esc_html__( 'Branch ID Override', $td ),
+								'tooltip' => esc_html__( 'A specific branch ID, used for origination attribution, that when set takes precedence over the originating user\'s.', $td ),
+								'required' => false,
 							),
 						),
-					),
-					array(
-						'name'           => 'condition',
-						'label'          => esc_html__('Condition', 'blend-gfeed'),
-						'type'           => 'feed_condition',
-						'checkbox_label' => esc_html__('Enable Condition', 'blend-gfeed'),
-						'instructions'   => esc_html__('Process this Blend feed if', 'blend-gfeed'),
 					),
 				),
 			),
 		);
+		
+		$settings_fields[0][] = array(
+			'name'           => 'condition',
+			'label'          => esc_html__('Condition', $td ),
+			'type'           => 'feed_condition',
+			'checkbox_label' => esc_html__('Enable Condition', $td ),
+			'instructions'   => esc_html__('Process this Blend feed if', $td ),
+		);
+
+		return $settings_fields;
 	}
 
 	/**
@@ -418,5 +625,14 @@ class BlendGFeed extends GFFeedAddOn {
 	   -1255 912 -206 148 -478 266 -715 309 -120 22 -401 27 -525 10z"/>
 	   </g>
 	   </svg>';
+	}
+
+	/**
+	 * Use custom avatar for Blend Feed notes added to entries
+	 *
+	 * @return string URL for an image.
+	 */
+	public function note_avatar() {
+		return $this->get_base_url() . '/../blend-logo.png';
 	}
 }

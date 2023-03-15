@@ -43,7 +43,7 @@ class Blend_API {
 		try {
 			$response = $this->client->request( $method, esc_url( 'https://api.beta.blendlabs.com/' . $route ), $args );
 		} catch ( \GuzzleHttp\Exception\RequestException $e ) {
-			return new \WP_Error( 'guzzle_http_error', 'HTTP Exception: ' . $e->getMessage() );
+			return new \WP_Error( 'guzzle_http_error', $e->getResponse()->getBody()->getContents() );
 		} catch ( \Exception $e ) {
 			return new \WP_Error( 'general_error', 'Exception: ' . $e->getMessage() );
 		}
