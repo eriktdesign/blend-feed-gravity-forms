@@ -95,9 +95,26 @@ class BlendGFeed extends GFFeedAddOn {
 		$response = $api->post( 'home-lending/applications', [], json_encode( $merge_vars ) );
 		if ( is_wp_error( $response ) ) {
 			$this->add_feed_error( 'Error posting to Blend', $feed, $entry, $form );
-		} else {
-			$this->add_note( $entry['id'], 'Entry sent to Blend successfully', 'success' );
-		}
+			return false;
+		} 
+		
+		$data = json_decode( $response );
+		$application_id = $data->id;
+		
+		$this->add_note( $entry['id'], "Application sent to Blend successfully as $application_id", 'success' );
+		
+
+		// Not sure this works. We might need to parse the JSON to find the party that has "type" set to "BORROWER"
+		$party_id = $data->parties[0]->id;
+
+		// post to the /parties/{id} endpoint
+		// $response = $api->post( "parties/$party_id", [], json_encode( $parties_data ) );
+		
+		// Sample custom Meta:
+		// customMetadata.estCreditScore.fieldValue = 740
+
+		// post to the /realtors/{id} endpoint
+		// $response = $api->post( "realtors/$application_id", [], json_encode( $realtors_data ) );
 	}
 
 	/**
