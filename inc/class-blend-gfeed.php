@@ -89,8 +89,15 @@ class BlendGFeed extends GFFeedAddOn {
 			$ref = $this->get_field_value( $form, $entry, $field_id );
 		}
 
+		// If an assignee has been added, remove it from the merge vars, it's a separate API call
+		if ( array_key_exists( 'assignee', $merge_vars ) ) {
+			$assignee = $merge_vars['assignee'];
+			unset( $merge_vars['assignee'] );
+		} else {
+			$assignee = false;
+		}
+
 		// Send the values to the third-party service.
-		// print_r(json_encode($merge_vars));
 		$api = new Blend_API();
 		$response = $api->post( 'home-lending/applications', [], json_encode( $merge_vars ) );
 		if ( is_wp_error( $response ) ) {
@@ -98,14 +105,31 @@ class BlendGFeed extends GFFeedAddOn {
 			return false;
 		} 
 		
+		// Get data from the response
 		$data = json_decode( $response );
 		$application_id = $data->id;
 		
+		// Note on the entry
 		$this->add_note( $entry['id'], "Application sent to Blend successfully as $application_id", 'success' );
 		
+		// Patch the assignee to the application
+		if ( $application_id && $assignee ) {
+			// Create the JSON to send
+			$assignees = sprintf( '{"assignees":[{"userId":"%s"}]}', $assignee );
+			// Send the API request
+			$response = $api->patch( "home-lending/applications/$application_id/assignees", [], $assignees );
+			// Handle error
+			if ( is_wp_error( $response ) ) {
+				$this->add_feed_error( 'Error assigning loan officer in Blend', $feed, $entry, $form );
+				return false;
+			}
+
+			// Add note to entry on success
+			$this->add_note( $entry['id'], "Loan officer $assignee assigned in Blend successfully.", 'success' );
+		}
 
 		// Not sure this works. We might need to parse the JSON to find the party that has "type" set to "BORROWER"
-		$party_id = $data->parties[0]->id;
+		// $party_id = $data->parties[0]->id;
 
 		// post to the /parties/{id} endpoint
 		// $response = $api->post( "parties/$party_id", [], json_encode( $parties_data ) );
@@ -539,6 +563,14 @@ class BlendGFeed extends GFFeedAddOn {
 								'name' => 'branchIdOverride',
 								'label' => esc_html__( 'Branch ID Override', $td ),
 								'tooltip' => esc_html__( 'A specific branch ID, used for origination attribution, that when set takes precedence over the originating user\'s.', $td ),
+								'required' => false,
+							),
+
+							// Loan Officer
+							array(
+								'name' => 'assignee',
+								'label' => esc_html__( 'Assignee', $td ),
+								'tooltip' => esc_html__( 'The Blend ID of the Loan Officer to assign to the application.' ),
 								'required' => false,
 							),
 						),
