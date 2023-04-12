@@ -68,6 +68,11 @@ class BlendGFeed extends GFFeedAddOn {
 
 			if ( empty( $this->get_field_value( $form, $entry, $field_id ) ) ) continue;
 
+			if ( $field_id == 'blend-target-instance' ) {
+				$blend_target_instance = $this->get_field_value( $form, $entry, $field_id );
+				continue;
+			}
+
 			// Get the nested array keys for this value
 			$keys = explode( '.', $name );
 
@@ -221,20 +226,30 @@ class BlendGFeed extends GFFeedAddOn {
 	 * Creates a custom page for this add-on.
 	 */
 	public function plugin_page() {
-		echo '<h2>Blend API Settings</h2>';
+		echo '<h2>Blend API Debug</h2>';
+		echo '<p>Below is a response from the <code>home-lending/applications</code> endpoint with your current configuration.</p>';
 
 		$api = new Blend_API();
-		echo $api->get( 'home-lending/applications' );
+		$response = $api->get( 'home-lending/applications' );
 
-		$data = [
-			'party' => [
-				'name' => [
-					'firstName' => 'Test',
-					'lastName' => 'Userface',
-				],
-				'email' => 'test@test.local'
-			]
-		];
+		if ( ! is_wp_error( $response ) ) {
+			$json = json_encode( json_decode( $response ), JSON_PRETTY_PRINT );
+			echo '<pre><code>';
+			echo $json;
+			echo '</code></pre>';
+		} else {
+			var_dump($response);
+		}
+
+		// $data = [
+		// 	'party' => [
+		// 		'name' => [
+		// 			'firstName' => 'Test',
+		// 			'lastName' => 'Userface',
+		// 		],
+		// 		'email' => 'test@test.local'
+		// 	]
+		// ];
 
 		// echo $api->post( 'home-lending/applications', [], json_encode( $data ) );
 
@@ -252,14 +267,14 @@ class BlendGFeed extends GFFeedAddOn {
 				'fields' => array(
 					array(
 						'name'    => 'tenant_name',
-						'tooltip' => esc_html__('Enter the Tenant Name you use to connect to Blend', 'blend-gfeed'),
+						'tooltip' => esc_html__('Enter the Tenant Name you use to connect to Blend. This can be overridden for individual feeds.', 'blend-gfeed'),
 						'label'   => esc_html__('API Username', 'blend-gfeed'),
 						'type'    => 'text',
 						'class'   => 'small',
 					),
 					array(
 						'name'    => 'instance_id',
-						'tooltip' => esc_html__('Enter the Instance ID you use to connect to Blend', 'blend-gfeed'),
+						'tooltip' => esc_html__('Enter the Instance ID you use to connect to Blend. This can be overridden for individual feeds.', 'blend-gfeed'),
 						'label'   => esc_html__('Instance ID', 'blend-gfeed'),
 						'type'    => 'text',
 						'class'   => 'small',
@@ -352,6 +367,12 @@ class BlendGFeed extends GFFeedAddOn {
 						'label'     => esc_html__('Map Fields', $td ),
 						'type'      => 'field_map',
 						'field_map' => array(
+							array(
+								'name' => 'blend-target-instance',
+								'label' => esc_html__( 'Blend Target Instance', $td ),
+								'tooltip' => esc_html__( 'The Blend target Tenant / Instance for this feed. Tenant and Instance should be separated by a "~"' ),
+								'required' => false,
+							),
 							array(
 								'name' => 'solutionSubType',
 								'label' => esc_html__( 'Solution Subtype', $td ),

@@ -24,6 +24,9 @@ class Blend_API {
 
 
 		$this->client = new \GuzzleHttp\Client();
+	}
+
+	public function set_client_args() {
 		$this->client_args = [
 			'headers' => [
 				'Content-Type' => 'application/json',
@@ -40,6 +43,7 @@ class Blend_API {
 	}
 
 	public function request( $method, $route, $args = [], $body = '' ) {
+		$this->set_client_args();
 		$args = wp_parse_args( $args, $this->client_args );
 		$args['body'] = $body;
 		// Run request
@@ -63,7 +67,8 @@ class Blend_API {
 	 * @param string $body Body of request
 	 * @return string Body of HTTP response
 	 */
-	public function get( $route, $args = [], $body = '' ) {
+	public function get( $route, $args = [], $body = '', $blend_target_instance = '' ) {
+		if ( ! empty( $blend_target_instance ) ) $this->set_target_instance( $blend_target_instance );
 		return $this->request( 'GET', $route, $args, $body );
 	}
 	
@@ -75,7 +80,8 @@ class Blend_API {
 	 * @param string $body Body of request
 	 * @return string Body of HTTP response
 	 */
-	public function post( $route, $args = [], $body = '' ) {
+	public function post( $route, $args = [], $body = '', $blend_target_instance = '' ) {
+		if ( ! empty( $blend_target_instance ) ) $this->set_target_instance( $blend_target_instance );
 		return $this->request( 'POST', $route, $args, $body );
 	}
 
@@ -87,7 +93,8 @@ class Blend_API {
 	 * @param string $body Body of request
 	 * @return string Body of HTTP response
 	 */
-	public function delete( $route, $args = [], $body = '' ) {
+	public function delete( $route, $args = [], $body = '', $blend_target_instance = '' ) {
+		if ( ! empty( $blend_target_instance ) ) $this->set_target_instance( $blend_target_instance );
 		return $this->request( 'DELETE', $route, $args, $body );
 	}
 
@@ -99,7 +106,8 @@ class Blend_API {
 	 * @param string $body Body of request
 	 * @return string Body of HTTP response
 	 */
-	public function patch( $route, $args = [], $body = '' ) {
+	public function patch( $route, $args = [], $body = '', $blend_target_instance = '' ) {
+		if ( ! empty( $blend_target_instance ) ) $this->set_target_instance( $blend_target_instance );
 		return $this->request( 'PATCH', $route, $args, $body );
 	}
 
@@ -111,7 +119,26 @@ class Blend_API {
 	 * @param string $body Body of request
 	 * @return string Body of HTTP response
 	 */
-	public function put( $route, $args = [], $body = '' ) {
+	public function put( $route, $args = [], $body = '', $blend_target_instance = '' ) {
+		if ( ! empty( $blend_target_instance ) ) $this->set_target_instance( $blend_target_instance );
 		return $this->request( 'PUT', $route, $args, $body );
+	}
+
+	/**
+	 * Sets the target tenant and/or instance
+	 *
+	 * @param string $blend_target_instance tenant or tenant~instance string
+	 * @return void
+	 */
+	public function set_target_instance( $blend_target_instance ) {
+		if ( strpos( $blend_target_instance, '~' ) === false ) {
+			// No separator, this is just the tenant name
+			$this->tenant_name = $blend_target_instance;
+		} else {
+			// Separator is there, explode and set both values
+			$blend_target_instance = explode( '~', $blend_target_instance );
+			$this->tenant_name = $blend_target_instance[0];
+			$this->instance_id = $blend_target_instance[1];
+		}
 	}
 }
