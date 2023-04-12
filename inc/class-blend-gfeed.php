@@ -62,6 +62,8 @@ class BlendGFeed extends GFFeedAddOn {
 		// Retrieve the name => value pairs for all fields mapped in the 'mappedFields' field map.
 		$field_map = $this->get_field_map_fields($feed, 'mappedFields');
 
+		$blend_target_instance = '';
+
 		// Loop through the fields from the field map setting building an array of values to be passed to the third-party service.
 		$merge_vars = array();
 		foreach ($field_map as $name => $field_id) {
@@ -104,7 +106,7 @@ class BlendGFeed extends GFFeedAddOn {
 
 		// Send the values to the third-party service.
 		$api = new Blend_API();
-		$response = $api->post( 'home-lending/applications', [], json_encode( $merge_vars ) );
+		$response = $api->post( 'home-lending/applications', [], json_encode( $merge_vars ), $blend_target_instance );
 		if ( is_wp_error( $response ) ) {
 			$this->add_feed_error( 'Error posting to Blend', $feed, $entry, $form );
 			return false;
@@ -122,7 +124,7 @@ class BlendGFeed extends GFFeedAddOn {
 			// Create the JSON to send
 			$assignees = sprintf( '{"assignees":[{"userId":"%s"}]}', $assignee );
 			// Send the API request
-			$response = $api->patch( "home-lending/applications/$application_id/assignees", [], $assignees );
+			$response = $api->patch( "home-lending/applications/$application_id/assignees", [], $assignees, $blend_target_instance );
 			// Handle error
 			if ( is_wp_error( $response ) ) {
 				$this->add_feed_error( 'Error assigning loan officer in Blend', $feed, $entry, $form );
