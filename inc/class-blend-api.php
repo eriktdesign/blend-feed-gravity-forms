@@ -6,6 +6,7 @@ class Blend_API {
 	protected $instance_id;
 	protected $api_username;
 	protected $api_password;
+	protected $environment;
 
 	public $client;
 	private $client_args;
@@ -19,6 +20,8 @@ class Blend_API {
 		$this->instance_id = rgar($settings, 'instance_id');
 		$this->api_username = rgar($settings, 'api_username');
 		$this->api_password = rgar($settings, 'api_password');
+		$this->environment = rgar($settings, 'environment', 'https://api.beta.blend.com/');
+
 
 		$this->client = new \GuzzleHttp\Client();
 		$this->client_args = [
@@ -41,7 +44,7 @@ class Blend_API {
 		$args['body'] = $body;
 		// Run request
 		try {
-			$response = $this->client->request( $method, esc_url( 'https://api.beta.blendlabs.com/' . $route ), $args );
+			$response = $this->client->request( $method, esc_url( $this->environment . $route ), $args );
 		} catch ( \GuzzleHttp\Exception\RequestException $e ) {
 			return new \WP_Error( 'guzzle_http_error', $e->getResponse()->getBody()->getContents() );
 		} catch ( \Exception $e ) {

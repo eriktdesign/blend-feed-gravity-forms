@@ -280,6 +280,24 @@ class BlendGFeed extends GFFeedAddOn {
 						'class'   => 'small',
 					),
 					array(
+						'name'    => 'environment',
+						'tooltip' => esc_html__('Select        the environment to run requests against', 'blend-gfeed'),
+						'label'   => esc_html__('Environment', 'blend-gfeed'),
+						'type'    => 'select',
+						'choices' => array(
+							array(
+								'label' => esc_html__('Beta/Test  API Environment', 'blend-gfeed'),
+								'name'  => 'beta',
+								'value' => 'https://api.beta.blend.com/',
+							 ),
+							 array(
+								'label' => esc_html__('Production API Environment', 'blend-gfeed'),
+								'name'  => 'prod',
+								'value' => 'https://api.blend.com/',
+							),
+						),
+					),
+					array(
 						'name'    => 'api_connection_status',
 						// 'tooltip' => esc_html__('The status of your API connection', 'blend-gfeed'),
 						'label'   => esc_html__('API Connection Status', 'blend-gfeed'),
