@@ -70,7 +70,7 @@ class BlendGFeed extends GFFeedAddOn {
 
 			if ( empty( $this->get_field_value( $form, $entry, $field_id ) ) ) continue;
 
-			if ( $field_id == 'blend-target-instance' ) {
+			if ( $name == 'blend-target-instance' ) {
 				$blend_target_instance = $this->get_field_value( $form, $entry, $field_id );
 				continue;
 			}
@@ -107,8 +107,10 @@ class BlendGFeed extends GFFeedAddOn {
 		// Send the values to the third-party service.
 		$api = new Blend_API();
 		$response = $api->post( 'home-lending/applications', [], json_encode( $merge_vars ), $blend_target_instance );
+		// $this->add_note( $entry['id'], "Sending to $blend_target_instance: " . json_encode($merge_vars), 'success' );
 		if ( is_wp_error( $response ) ) {
 			$this->add_feed_error( 'Error posting to Blend', $feed, $entry, $form );
+			$this->add_feed_error( print_r( $response, true ), $feed, $entry, $form );
 			return false;
 		} 
 		
@@ -118,21 +120,25 @@ class BlendGFeed extends GFFeedAddOn {
 		
 		// Note on the entry
 		$this->add_note( $entry['id'], "Application sent to Blend successfully as $application_id", 'success' );
+		// $this->add_note( $entry['id'], print_r( $response, true ), 'success' );
 		
 		// Patch the assignee to the application
 		if ( $application_id && $assignee ) {
 			// Create the JSON to send
-			$assignees = sprintf( '{"assignees":[{"userId":"%s"}]}', $assignee );
+			// $assignees = sprintf( '{"assignees":[{"userId":"%s"}]}', $assignee );
+			$assignees = sprintf( '{"assignees":[{"userId":"%s","role":"PRIMARY_ASSIGNEE"}]}', $assignee );
 			// Send the API request
 			$response = $api->patch( "home-lending/applications/$application_id/assignees", [], $assignees, $blend_target_instance );
 			// Handle error
 			if ( is_wp_error( $response ) ) {
 				$this->add_feed_error( 'Error assigning loan officer in Blend', $feed, $entry, $form );
+				$this->add_feed_error( print_r( $response, true ), $feed, $entry, $form );
 				return false;
 			}
 
 			// Add note to entry on success
 			$this->add_note( $entry['id'], "Loan officer $assignee assigned in Blend successfully.", 'success' );
+			// $this->add_note( $entry['id'], print_r( $response, true ), 'success' );
 		}
 
 		// Not sure this works. We might need to parse the JSON to find the party that has "type" set to "BORROWER"

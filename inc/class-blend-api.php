@@ -2,8 +2,9 @@
 
 class Blend_API {
 
-	protected $tenant_name;
-	protected $instance_id;
+	// protected $tenant_name;
+	// protected $instance_id;
+	protected $blend_target_instance;
 	protected $api_username;
 	protected $api_password;
 	protected $environment;
@@ -16,8 +17,9 @@ class Blend_API {
 		$settings = blend_gfeed()->get_plugin_settings();
 
 		// Access a specific setting e.g. an api key
-		$this->tenant_name = rgar($settings, 'tenant_name');
-		$this->instance_id = rgar($settings, 'instance_id');
+		// $this->tenant_name = rgar($settings, 'tenant_name');
+		// $this->instance_id = rgar($settings, 'instance_id');
+		$this->blend_target_instance = rgar($settings, 'tenant_name') . '~' . rgar($settings, 'instance_id');
 		$this->api_username = rgar($settings, 'api_username');
 		$this->api_password = rgar($settings, 'api_password');
 		$this->environment = rgar($settings, 'environment', 'https://api.beta.blend.com/');
@@ -32,7 +34,8 @@ class Blend_API {
 				'Content-Type' => 'application/json',
 				'accept' => 'application/json; charset=utf-8',
 				'blend-api-version' => '5.3.0',
-				'blend-target-instance' => "$this->tenant_name~$this->instance_id", //'allied~default',
+				// 'blend-target-instance' => "$this->tenant_name~$this->instance_id", //'allied~default',
+				'blend-target-instance' => $this->blend_target_instance,
 				'cache-control' => 'no-cache',
 			],
 			'auth' => [ 
@@ -48,12 +51,18 @@ class Blend_API {
 		$args['body'] = $body;
 		// Run request
 		try {
+			// Log
+			// wp_mail( 'erik@inverseparadox.net', "Sending API request to Blend", print_r( $args, 1 ) );
 			$response = $this->client->request( $method, esc_url( $this->environment . $route ), $args );
 		} catch ( \GuzzleHttp\Exception\RequestException $e ) {
+			// wp_mail( 'erik@inverseparadox.net', "Guzzle HTTP Error", print_r( $e->getResponse()->getBody()->getContents(), 1 ) );
 			return new \WP_Error( 'guzzle_http_error', $e->getResponse()->getBody()->getContents() );
 		} catch ( \Exception $e ) {
+			// wp_mail( 'erik@inverseparadox.net', "General Error", print_r( $e->getMessage(), 1 ) );
 			return new \WP_Error( 'general_error', 'Exception: ' . $e->getMessage() );
 		}
+
+		// wp_mail( 'erik@inverseparadox.net', "Request Successful", print_r( $response->getBody(), 1 ) );
 
 		// Output response
 		return $response->getBody();
@@ -131,14 +140,15 @@ class Blend_API {
 	 * @return void
 	 */
 	public function set_target_instance( $blend_target_instance ) {
-		if ( strpos( $blend_target_instance, '~' ) === false ) {
-			// No separator, this is just the tenant name
-			$this->tenant_name = $blend_target_instance;
-		} else {
-			// Separator is there, explode and set both values
-			$blend_target_instance = explode( '~', $blend_target_instance );
-			$this->tenant_name = $blend_target_instance[0];
-			$this->instance_id = $blend_target_instance[1];
-		}
+		// if ( strpos( $blend_target_instance, '~' ) === false ) {
+		// 	// No separator, this is just the tenant name
+		// 	$this->tenant_name = $blend_target_instance;
+		// } else {
+		// 	// Separator is there, explode and set both values
+		// 	$blend_target_instance = explode( '~', $blend_target_instance );
+		// 	$this->tenant_name = $blend_target_instance[0];
+		// 	$this->instance_id = $blend_target_instance[1];
+		// }
+		$this->blend_target_instance = $blend_target_instance;
 	}
 }
