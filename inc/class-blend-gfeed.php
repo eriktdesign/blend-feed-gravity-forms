@@ -72,6 +72,7 @@ class BlendGFeed extends GFFeedAddOn {
 
 			if ( $name == 'blend-target-instance' ) {
 				$blend_target_instance = $this->get_field_value( $form, $entry, $field_id );
+				$blend_target_instance = str_replace( '-', '~', $blend_target_instance );
 				continue;
 			}
 
